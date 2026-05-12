@@ -1,0 +1,42 @@
+" ===== 基础设置 =====
+set nocompatible          " 关闭 Vi 兼容模式
+syntax on                 " 开启语法高亮
+set number                " 显示行号
+" set relativenumber        " 显示相对行号
+set cursorline            " 高亮当前行
+set showmatch             " 高亮匹配括号
+set autoindent            " 自动缩进
+set smartindent           " 智能缩进
+set tabstop=4             " Tab 显示为4空格
+set shiftwidth=4          " 缩进宽度4空格
+set expandtab             " 将 Tab 转为空格
+set hlsearch              " 高亮搜索结果
+set incsearch             " 实时搜索
+set ignorecase            " 搜索忽略大小
+set smartcase             " 大小写敏感智能识别
+set wildmenu              " 命令补全菜单
+set backspace=indent,eol,start  " 退格键自由删除
+set mouse=a               " 启用鼠标
+set encoding=utf-8        " 编码统一utf-8
+set laststatus=2          " 显示状态栏
+set showcmd               " 显示正在输入的命令
+set clipboard=unnamed     " 使用系统剪贴板（Linux下需vim支持+clipboard）
+
+" ===== 快捷键映射 =====
+let mapleader = " "       " 空格作为Leader键
+nnoremap <leader>w :w<CR> " 保存文件
+inoremap jj <ESC>         " jj 退出插入模式
+nnoremap <leader>q :q<CR> " 快速退出
+
+" ===== 配色方案（使用内置主题）=====
+colorscheme  industry       " 内置主题，确保存在
+set background=dark
+
+" ===== 简单插件管理（可选，无需插件可不加）=====
+" 如果你想尝试最简单的插件管理器 vim-plug，可以取消下面的注释
+call plug#begin('~/.vim/plugged')
+   " 放插件列表，例如：
+   Plug 'preservim/nerdtree'   " 文件树
+ call plug#end()
+ nnoremap <leader>n :NERDTreeToggle<CR>
+ nnoremap <leader>f :NERDTreeFind<CR>
