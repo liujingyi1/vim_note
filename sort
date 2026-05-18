@@ -1,0 +1,83 @@
+//主要记录C算法，排序或者查找等
+
+#include <stdio.h>
+#include <stdlib.h>   // rand(), srand()
+#include <time.h>     // time()
+
+void swap(int a[], int m, int n) {
+    int temp = a[m];
+    a[m] = a[n];
+    a[n] = temp;
+}
+
+void swap(char a[], int m, int n) {
+    int temp = a[m];
+    a[m] = a[n];
+    a[n] = temp;
+}
+
+堆排序
+void HeapSort(int arr[], int n) {
+
+    if (n < 2) return;
+
+    for (int i = n - 1; i > 0; i--) {
+
+        for (int top = (i + 1) / 2 - 1; top >= 0; top--) {
+            int left = ((top+1) * 2) - 1;
+            int right = (top + 1) * 2;
+
+            if (arr[left] > arr[top]) {
+                swap(arr, left, top);
+            }
+            if (right <= i && arr[right] > arr[top]) {
+                swap(arr, right, top);
+            }
+        }
+
+        swap(arr, i, 0);
+    }
+}
+
+//打印数组的所有排列组合
+void permutation(char list[], int start, int end) {
+    if (start == end) {
+        for (int i = 0; i <= end; i++) {
+            printf("%c ", list[i]);
+        }
+        printf("\n ");
+        return;
+    }
+
+    for (int i = start; i <= end; i++) {
+        swap(list, start, i);
+        permutation(list, start+1, end);
+        swap(list, start, i);
+    }
+}
+
+int main() {
+
+    // srand(time(NULL));
+
+    // int arr[100];
+    // for (int i = 0; i < 100; i++) {
+    //     arr[i] = rand() % 2000;
+    // }
+
+    // //int arr[] = {49, 38, 65, 97, 76, 13, 27, 49, 55, 4};
+    // int n = sizeof(arr)/ sizeof(arr[0]);
+    
+    // HeapSort(arr, sizeof(arr)/ sizeof(arr[0]));
+
+    // for (int i = 0; i < n; i++) {
+    //     printf("%d ", arr[i]);
+    // }
+
+    // printf("size:%d", n);
+
+    char list[] = {'A', 'B', 'C', 'D', 'E'};
+    permutation(list, 0, sizeof(list)/ sizeof(list[0]) - 1);
+
+    return 0;
+}
