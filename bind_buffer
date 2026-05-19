@@ -1,0 +1,204 @@
+From 6f82c9c1e81bed2099bf6d54f1182605ee7444af Mon Sep 17 00:00:00 2001
+From: YIGAOWU <thoughtworks.wu.wu@mercedes-benz.com>
+Date: Wed, 8 Apr 2026 14:38:06 +0800
+Subject: [PATCH] APRICOT-1043772 fix: adjust binder buffer size for
+ SystemServer
+
+---
+ libs/binder/ProcessState.cpp              | 35 +++++++++++++++++------
+ libs/binder/include/binder/ProcessState.h | 14 +++++++--
+ 2 files changed, 38 insertions(+), 11 deletions(-)
+
+diff --git a/libs/binder/ProcessState.cpp b/libs/binder/ProcessState.cpp
+index 5e7f1510bc..b027242921 100644
+--- a/libs/binder/ProcessState.cpp
++++ b/libs/binder/ProcessState.cpp
+@@ -100,17 +100,25 @@ protected:
+ 
+ sp<ProcessState> ProcessState::self()
+ {
+-    return init(kDefaultDriver, false /*requireDefault*/);
++    return init(kDefaultDriver, BINDER_VM_SIZE, false /*requireDefault*/,
++                false /*requireMmapSize*/);
+ }
+ 
+ sp<ProcessState> ProcessState::initWithDriver(const char* driver)
+ {
+-    return init(driver, true /*requireDefault*/);
++    return init(driver, BINDER_VM_SIZE, true /*requireDefault*/,
++                false /*requireMmapSize*/);
++}
++
++sp<ProcessState> ProcessState::initWithMmapSize(size_t mmapSize)
++{
++    if (mmapSize == 0) return selfOrNull();
++    return init(kDefaultDriver, mmapSize, false /*requireDefault*/, true /*requireMmapSize*/);
+ }
+ 
+ sp<ProcessState> ProcessState::selfOrNull()
+ {
+-    return init(nullptr, false /*requireDefault*/);
++    return init(nullptr, 0, false /*requireDefault*/, false /*requireMmapSize*/);
+ }
+ 
+ [[clang::no_destroy]] static sp<ProcessState> gProcess;
+@@ -124,7 +132,8 @@ bool ProcessState::isVndservicemanagerEnabled() {
+     return access("/vendor/bin/vndservicemanager", R_OK) == 0;
+ }
+ 
+-sp<ProcessState> ProcessState::init(const char* driver, bool requireDefault) {
++sp<ProcessState> ProcessState::init(const char* driver, size_t mmapSize, bool requireDefault,
++                                    bool requireMmapSize) {
+     if (driver == nullptr) {
+         std::lock_guard<std::mutex> l(gProcessMutex);
+         if (gProcess) {
+@@ -154,7 +163,7 @@ sp<ProcessState> ProcessState::init(const char* driver, bool requireDefault) {
+         LOG_ALWAYS_FATAL_IF(ret != 0, "pthread_atfork error %s", strerror(ret));
+ 
+         std::lock_guard<std::mutex> l(gProcessMutex);
+-        gProcess = sp<ProcessState>::make(driver);
++        gProcess = sp<ProcessState>::make(driver, mmapSize);
+     });
+ 
+     if (requireDefault) {
+@@ -166,6 +175,13 @@ sp<ProcessState> ProcessState::init(const char* driver, bool requireDefault) {
+                             gProcess->getDriverName().c_str(), driver);
+     }
+ 
++    if (requireMmapSize) {
++        LOG_ALWAYS_FATAL_IF(gProcess->mMmapSize != mmapSize,
++                            "ProcessState was already initialized with mmap size %zu,"
++                            " can't initialize with %zu.",
++                            gProcess->mMmapSize, mmapSize);
++    }
++
+     verifyNotForked(gProcess->mForked);
+     return gProcess;
+ }
+@@ -570,10 +586,11 @@ static unique_fd open_driver(const char* driver, String8* error) {
+     return fd;
+ }
+ 
+-ProcessState::ProcessState(const char* driver)
++ProcessState::ProcessState(const char* driver, size_t mmapSize)
+       : mDriverName(String8(driver)),
+         mDriverFD(-1),
+         mVMStart(MAP_FAILED),
++        mMmapSize(mmapSize),
+         mExecutingThreadsCount(0),
+         mMaxThreads(DEFAULT_MAX_BINDER_THREADS),
+         mCurrentThreads(0),
+@@ -588,8 +605,8 @@ ProcessState::ProcessState(const char* driver)
+ 
+     if (opened.ok()) {
+         // mmap the binder, providing a chunk of virtual address space to receive transactions.
+-        mVMStart = mmap(nullptr, BINDER_VM_SIZE, PROT_READ, MAP_PRIVATE | MAP_NORESERVE,
+-                        opened.get(), 0);
++        mVMStart = mmap(nullptr, mMmapSize, PROT_READ, MAP_PRIVATE | MAP_NORESERVE, opened.get(),
++                        0);
+         if (mVMStart == MAP_FAILED) {
+             // *sigh*
+             ALOGE("Using %s failed: unable to mmap transaction memory.", driver);
+@@ -613,7 +630,7 @@ ProcessState::~ProcessState()
+ {
+     if (mDriverFD >= 0) {
+         if (mVMStart != MAP_FAILED) {
+-            munmap(mVMStart, BINDER_VM_SIZE);
++            munmap(mVMStart, mMmapSize);
+         }
+         close(mDriverFD);
+     }
+diff --git a/libs/binder/include/binder/ProcessState.h b/libs/binder/include/binder/ProcessState.h
+index 21bfd42fcc..4eb52b1149 100644
+--- a/libs/binder/include/binder/ProcessState.h
++++ b/libs/binder/include/binder/ProcessState.h
+@@ -54,6 +54,14 @@ public:
+      */
+     LIBBINDER_EXPORTED static sp<ProcessState> initWithDriver(const char* driver);
+ 
++    /* initWithMmapSize() can be used to configure libbinder to use
++     * a larger or smaller binder transaction virtual memory mapping.
++     * It must be called *before* any call to ProcessState::self().
++     *
++     * If this is called with 0, the behavior is the same as selfOrNull.
++     */
++    LIBBINDER_EXPORTED static sp<ProcessState> initWithMmapSize(size_t mmapSize);
++
+     LIBBINDER_EXPORTED sp<IBinder> getContextObject(const sp<IBinder>& caller);
+ 
+     // This should be called before startThreadPool at the beginning
+@@ -139,7 +147,8 @@ public:
+     LIBBINDER_EXPORTED static bool isDriverFeatureEnabled(const DriverFeature feature);
+ 
+ private:
+-    static sp<ProcessState> init(const char* defaultDriver, bool requireDefault);
++    static sp<ProcessState> init(const char* driver, size_t mmapSize,
++                                 bool requireDefault, bool requireMmapSize);
+ 
+     static void onFork();
+     static void parentPostFork();
+@@ -148,7 +157,7 @@ private:
+     friend class IPCThreadState;
+     friend class sp<ProcessState>;
+ 
+-    explicit ProcessState(const char* driver);
++    explicit ProcessState(const char* driver, size_t mmapSize);
+     ~ProcessState();
+ 
+     ProcessState(const ProcessState& o);
+@@ -165,6 +174,7 @@ private:
+     String8 mDriverName;
+     int mDriverFD;
+     void* mVMStart;
++    const size_t mMmapSize;
+ 
+     mutable std::mutex mOnThreadAvailableLock;
+     std::condition_variable mOnThreadAvailableCondVar;
+-- 
+GitLab
+
+
+
+
+
+
+
+From da348d1feee7eb5aece2cecaf58534291cd03efe Mon Sep 17 00:00:00 2001
+From: YIGAOWU <thoughtworks.wu.wu@mercedes-benz.com>
+Date: Wed, 15 Apr 2026 15:37:11 +0800
+Subject: [PATCH] APRICOT-1043772 fix: Init system_server's ProcessState with
+ 4M in Zygote
+
+---
+ core/jni/com_android_internal_os_Zygote.cpp | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/core/jni/com_android_internal_os_Zygote.cpp b/core/jni/com_android_internal_os_Zygote.cpp
+index fdb97f26f53f..b6dbc3a79439 100644
+--- a/core/jni/com_android_internal_os_Zygote.cpp
++++ b/core/jni/com_android_internal_os_Zygote.cpp
+@@ -89,6 +89,8 @@
+ //FLYME: for sched-opt {@
+ #include <sched.h>
+ //@}
++#include <binder/ProcessState.h>
++
+ #if defined(__BIONIC__)
+ extern "C" void android_reset_stack_guards();
+ #endif
+@@ -2207,6 +2209,12 @@ static void SpecializeCommon(JNIEnv* env, uid_t uid, gid_t gid, jintArray gids,
+         if (selinux_android_setcon(kSystemServerLabel) != 0) {
+             fail_fn(CREATE_ERROR("selinux_android_setcon(%s)", kSystemServerLabel));
+         }
++
++        // Init SystemServer's ProcessState here, before CallPostForkChildHooks.
++        constexpr size_t kSystemServerBinderVmSize = 4 * 1024 * 1024;
++        size_t mmapSize = kSystemServerBinderVmSize - (sysconf(_SC_PAGE_SIZE) * 2);
++        ALOGI("System server ProcessState is initialized with %zu mmapSize", mmapSize);
++        android::ProcessState::initWithMmapSize(mmapSize);
+     }
+ 
+     if (is_child_zygote) {
+-- 
+GitLab
+
