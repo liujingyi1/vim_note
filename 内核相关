@@ -1,0 +1,20 @@
+访问 vger.kernel.org 的列表主页，可以看到详细分类。另一个核心资源是 lore.kernel.org，这里提供了所有内核邮件列表的可搜索归档
+
+通过NNTP协议阅读（推荐）：NNTP方式是目前推荐的跟踪方式，适合有一定经验并希望高效管理的开发者。 这种方式不需要在邮箱中处理大量邮件，且不占用邮箱限额。配置方法如下：
+
+bash
+# 服务器地址：
+nntp://nntp.lore.kernel.org
+# 新闻组名称就是列表地址的反序
+# 例如，对于 linux-kernel@vger.kernel.org，其NNTP组名为：
+# vger.kernel.org.linux-kernel
+
+
+通过 korgalore 工具跟踪（高效方式）：korgalore 工具是目前推荐的跟踪方式，适合资深开发者和维护者，能极大提高跟踪效率。 它由 kernel.org 官方提供，可解析 MAINTAINERS 文件来精确跟踪特定子系统的邮件：
+
+bash
+# 1. 安装 korgalore (根据发行版，可能是 pip install korgalore 或类似命令)
+# 2. 在 Linux 源码目录下，跟踪特定子系统
+cd ~/linux
+kgl track-subsystem 'MEMORY MANAGEMENT'
+korgalore 与 lore.kernel.org 紧密集成，可以按需拉取并管理邮件，无需忍受邮箱轰炸。更多用法可参考其官方文档。
