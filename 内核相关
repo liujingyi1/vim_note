@@ -20,3 +20,5 @@ kgl track-subsystem 'MEMORY MANAGEMENT'
 korgalore 与 lore.kernel.org 紧密集成，可以按需拉取并管理邮件，无需忍受邮箱轰炸。更多用法可参考其官方文档。
 
 权威媒体：LWN.net 提供深入的每周内核发展动态；Phoronix 会迅速报道 LKML 上的重大新闻，如 Linus Torvalds 关于大小写不敏感文件系统的犀利评论。
+
+https://lkml.org/
