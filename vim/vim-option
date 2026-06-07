@@ -14,3 +14,8 @@
 vim-plug安装后，并且配置写好后，可以在vim里执行下面命令，就会安装配置好的插件
 :source ~/.vimrc （重新加载配置）
 :PlugInstall （开始安装插件）
+
+
+安装后，已经支持了Markdown的编辑，对于Preview，可以在编辑MD文件时，在vim中使用如下命令
+> :MarkdownPreview
+这会打开一个浏览器实时预览界面，可以实时看到vim中编辑的结果
