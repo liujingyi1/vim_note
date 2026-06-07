@@ -1,0 +1,16 @@
+# 让VIM支持插件
+安装 vim-plug
+在终端执行下面这条命令，它会将 plug.vim 文件下载到 Vim 指定的 autoload 目录中：
+` curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
+`    https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+
+>如果网络慢或失败：可以手动复制链接内容。用浏览器打开上面链接，将显示的代码全部复制，然后在本地创建 ~/.vim/autoload/plug.vim 文件，粘贴进去保存即可。
+
+把需要安装的插件放在这两个中间
+` call plug#begin('~/.vim/plugged')
+`  Plug 'preservim/nerdtree' 
+` call plug#end()
+
+vim-plug安装后，并且配置写好后，可以在vim里执行下面命令，就会安装配置好的插件
+:source ~/.vimrc （重新加载配置）
+:PlugInstall （开始安装插件）
